@@ -1,0 +1,719 @@
+Kubernetes
+==========
+
+What is Kubernetes K8s?
+Why do we Kubernetes?
+Features of Kubernetes?
+
+
+-> Kubernetes is a container management tool
+-> K8s is an open source orchestration platform
+-> K8s is used to manage our containers
+-> K8s provides a framework to handle containers related tasks (deployment, scaling, load balancing etc)
+-> Kubernetes is an open source container orchestration engine or container management tool, it automates deploying, scaling and managing containerized application
+
+-> K8s is developed by Google and handed over to CNCF (Cloud Native Computing Foundation )
+-> The name Kubernetes originates from Greek, meaning 'helmsman' or 'pilot'.
+
+-> Kubernetes will manage our containers at runtime
+
+-> Kubernetes is a container management tool/ Container Orchestration Engine - orchestrates container activity
+K8s provides a framework for managing the complex task of deploying, scaling, and operating applications in containers
+
+Container - Docker
+Management - deploying, scheduling, scaling, load balancing Tool (on behalf of you K8s will take care of all)
+
+K8s is used for managing the docker containers
+K8s is used for application deployments in the real time
+
+
+
+K8s Advantages
+1. Orchestration - management
+2. Self Healing - if container damaged it will create new one
+3. Load Balancing - distribute requests to all running containers
+4. Auto Scaling - scale up and scale down containers on demand basis
+
+================
+K8s Architecture
+================
+-> K8s follows cluster architecture (group of servers)
+    -> Master Node / Cluster Plane
+    -> Worker Nodes
+
+-> K8s Control Plane/Master Node contains below components
+   1. API Server
+   2. Scheduler
+   3. Controller Manager
+   4. ETCD   - The name "etcd" originated from two ideas, the unix "/etc" folder and "d" is distributed systems. The "/etc" folder is a place to store configuration data for a single system whereas etcd stores configuration information for large scale distributed systems. Hence, a "d" is tributed “/etc” is "etcd".
+etcd is an open source distributed key-value store used to hold and manage the critical information that distributed systems need to keep running. Most notably, it manages the configuration data, state data, and metadata for Kubernetes, the popular container orchestration platform
+
+-> K8s worker node contains below components
+   1. POD
+   2. Containers
+   3. Docker Engine
+   4. Kublet
+   5. Kube Proxy
+
+-> To communicate with K8s Control Plane we have 2 options
+   1. UI (Web Dashboard)
+   2. Kubectl (CLI)
+
+================================
+K8s Architecture Components
+================================
+1. API Server will receive incoming requests and it will store into ETCD
+2. ETCD is K8s cluster database
+3. Schedule will check pending tasks in ETCD and it will schedule those task in worker nodes
+4. Scheduler will get available worker nodes information by using Kubelet
+
+5. Kubelet is called as Worker node agent
+6. Kube-Proxy provides network for cluster communication
+
+7. POD is the smallest building block that we run in Kubernetes cluster. POD represents runtime instance of our application
+
+In K8s, our project will be executed as a POD. Inside POD containers will be created
+
+8. Controller Manager will monitor all K8s resources functionality
+
+
+PRACTICALS - Kubernetes Cluster Setup
+=====================================
+# Step - 1 : Create EKS Management Host in AWS #
+
+1) Launch new Ubuntu VM using AWS EC2 ( t2.micro )	  
+2) Connect to machine and install kubectl using below commands
+  
+ install 3 softwares in EC2 Instance - kubectl, aws-cli, eksctl
+
+$whoami
+
+kubectl - used to communicate with the K8s control plane/ master node
+The Kubernetes command-line tool, kubectl, allows you to run commands against Kubernetes clusters. You can use kubectl to deploy applications, inspect and manage cluster resources, and view logs
+
+eksctl is a simple CLI tool for creating and managing clusters on EKS - Amazon's managed Kubernetes service for EC2
+
+
+curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin
+kubectl version --short --client
+
+3) Install AWS CLI latest version using below commands 
+
+sudo apt install unzip
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+aws --version
+```
+
+4) Install eksctl using below commands
+```
+curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin
+eksctl version
+```
+# Step - 2 : Create IAM role & attach to EKS Management Host #
+
+1) Create New Role using IAM service ( Select Usecase - ec2 ) 	
+2) Add below permissions for the role <br/>
+	- IAM - fullaccess <br/>
+	- VPC - fullaccess <br/>
+	- EC2 - fullaccess  <br/>
+	- CloudFomration - fullaccess  <br/>
+	- Administrator - acces <br/>
+		
+3) Enter Role Name (capeksroleec2) 
+4) Attach created role to EKS Management Host (Select EC2 => Click on Security => Modify IAM Role => attach IAM role we have created)  - Actions > Security > Modify IAM role
+
+# Step - 3 : Create EKS Cluster using eksctl # 
+**Syntax:** 
+
+eksctl create cluster --name cluster-name  \
+--region region-name \
+--node-type instance-type \
+--nodes-min 2 \
+--nodes-max 2 \ 
+--zones <AZ-1>,<AZ-2>
+
+## N. Virgina: <br/>
+`
+eksctl create cluster --name sunil-cluster --region us-east-1 --node-type t2.medium  --zones us-east-1a,us-east-1b
+`	
+## Mumbai: <br/>
+`
+eksctl create cluster --name sunil-cluster --region ap-south-1 --node-type t2.medium  --zones ap-south-1a,ap-south-1b
+`
+
+## Note: Cluster creation will take 5 to 10 mins of time (we have to wait). After cluster created we can check nodes using below command.
+
+if error comes   $aws configure
+
+`
+ kubectl get nodes  
+`
+
+## Note: We should be able to see EKS cluster nodes here.**
+
+# We are done with our Setup #
+	
+## Step - 4 : After your practise, delete Cluster and other resources we have used in AWS Cloud to avoid billing ##
+
+```
+eksctl delete cluster --name sunil-cluster --region ap-south-1
+```
+
+#check pods running
+$ kubectl get pods
+-- no pods available
+
+#check pods running in which worker node
+$kubectl get pods -o wide
+
+#ceck services created
+$kubectl get svc
+-- no services available
+
+#check deployments created
+$ kubectl get deployment
+
+
+
+==== PART - 2 ======
+
+Steps:
+1. Create Spring Boot Application  /welcome
+2. Create Docker Image
+3. Push Image to Elastic Container Registry
+4. Pull Image from ECR and deploy into Kubernetes -EKS
+
+Spring Boot   ---> Docker --->  AWS ECR (Container Registry) ---> EKS Kubernetes
+
+
+AWS Account - AWS CLI , Kubectl, eksctl -- Docker
+
+1) GET /welcome
+pom.xml
+<build>
+ <finalName>sb-eks</finalName>
+
+2) maven package
+
+--- create docker image ---
+3) Dockerfile
+FROM openjdk:17
+ADD target/sb-eks.jar sb-eks.jar
+EXPOSE 8080
+ENTRYPOINT ["java","-jar","springboot-eks.jar"]
+
+4) create docker image
+docker build -t sb-eks .
+
+5) push docker image to ECR - Elastic Container Registry - Amazon Elastic Container Registry (ECR) is a fully managed container registry that makes it easy to store, manage, share, and deploy your container images and artifacts anywhere.
+
+- login to AWS console
+- services > Elastic Container Registry 
+  Repositories (Left Pane) > Create repository
+
+Repository name: ...../sb-eks
+
+> Create
+
+URI: 768121720918.dkr.ecr.us-east-1.amazonaws.com/sbpmsecr
+
+-- need to push our Docker image to this repository ----
+ --> View push commands
+[[Download & Install AWS CLI]]
+
+cmd>aws configure
+Access Key: AKIA3FV47KBLNDHTREFP
+Secret Access Key: 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
+Default Region Name: Global
+Default Output format: json
+
+cmd> aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 768121720918.dkr.ecr.us-east-1.amazonaws.com
+
+Build the docker image - if it is not already done - docker build -t sb-eks .
+
+After the build completes, tag your image so you can push the image to this repository:
+cmd> docker tag sb-eks:latest 768121720918.dkr.ecr.us-east-1.amazonaws.com/sb-eks:latest
+
+Push the image to the newly created AWS repository:
+cmd> docker push 768121720918.dkr.ecr.us-east-1.amazonaws.com/sb-eks:latest
+
+Copy URI: 768121720918.dkr.ecr.us-east-1.amazonaws.com/sb-eks:latest   (for reference)
+
+
+Step - 4: pull Image from ECR and deploy into EKS
+(a) setup of EKS to pull image from ECR 
+
+=>  Create Cluster in EKS  can do it through "eksctl" tool also
+Services  > EKS (Elastic Kubernetes Service) -> Create Cluster (Add Cluster)
+
+-- using eksctl ---
+cmd> eksctl create cluster --name sb-eks-cluster --version 1.29 --nodes=1 --node-type=t2.small --region us-east-1
+ (takes around 12 - 15 minutes)
+
+Refresh AWS Console - click on the created Cluster and can see all configurations
+
+Next we need to update our local "kubeconfig" file with the cluster ; so that it provides the necessary settings to connect from our local system to this cluster
+
+cmd> aws eks --region us-east-1 update-kubeconfig --name sb-eks-cluster
+
+Response: Added new context arn:aws:eks:us-east-1:768121720918:cluster/sb-eks-cluster to C:\Users\Sunil Joseph\.kube\config
+
+Our cluster is up and running 
+Next step is to - deploy the application to Kubernetes Cluster which is EKS
+
+=> to deploy any application to K8s we need 2 things
+    (i) Deployment object
+   (ii) Service object
+and these 2 objects we create by using YML configuration
+
+=> in application we specify the configuration to tell to the Kubernetes - what is the image that we need to deploy to the cluster and which type of service you want to expose
+
+=> create a new file with name "k8s.yaml"  - to specify the deployment and service specific specifications
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+        - name: myapp
+          image: 768121720918.dkr.ecr.us-east-1.amazonaws.com/sb-eks
+          ports:
+            - containerPort: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-service
+spec:
+  selector:
+    app: myapp
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer
+
+
+sb-docker-cloud> kubectl apply -f k8s.yaml
+
+Response:
+deployment.apps/myapp created
+service/myapp-service created
+
+== to validate
+cmd> kubectl get svc   (service)
+
+will display the service name, loadbalancer as type and external IP using which we can access our application
+
+
+=> no of pods we defined is 3 (replicas: 3) - to validate it
+cmd> kubectl get pods
+ 3 pods will be running
+
+=> how to access our application
+cmd> kubectl get svc
+copy the url and paste it in browser - whitelabel error
+provide the endpoint
+
+http://ab8636479d31b4c20b771e0ee365a82e-1750019997.us-east-2.elb.amazonaws.com/welcome
+
+
+Check "loadbalancer" services
+
+
+Delete Cluster 
+cmd> eksctl delete cluster sb-eks-cluster
+
+
+Reference: https://docs.aws.amazon.com/eks/latest/userguide/getting-started.htmls
+
+================================
+Kubernetes Cluster Core Components
+================================
+
+1) Control Plane
+  1.1 API Server
+  1.2 Scheduler
+  1.3 Controller - Manager
+  1.4 ETCD
+
+2) Worker Node
+  2.1 Kubelet
+  2.2 Kube-Proxy
+  2.3 Docker Engine
+  2.4 Container
+  2.5 POD
+
+POD is a smallest building block that we can deploy in K8s cluster
+Our application will be deployed in K8s cluster as a POD only
+For one application we can create multiple POD replicas for high availability
+For every POD one IP address will be generated
+If any POD gets damaged/ crashed then K8s will replace it (self-healing)
+To create PODs we will use MANIFEST YML files
+
+Note: By default PODs are accessible only with in the cluster (we can't access PODs rom outside)
+To expose PODs from outside access we need to use K8s Services Concept
+
+====================
+What is Service in K8s
+======================
+-> K8s service is used to expose PODs
+-> In K8s we have 3 type of Services
+   1. Cluster IP (To access PODs with in cluster - all PODs can be accessed with the same IP - for Load Balancing)
+   2. Node Port (to access PODs using NODE Public IP)
+   3. Load Balancer (To distribute the traffic to POD replicas)
+
+
+========================
+K8s  Manifest YML Syntax  - to create PODs and Service
+========================
+---
+apiVersion:
+kind:
+metadata:
+spec:
+...
+
+
+Example:  deployments and service sections
+
+---
+apiVersion: apps/v1
+kind: Deployment    - I want to do a deployment in K8s
+metadata: 
+  name: javawebappdevelopment
+spec:
+  replicas: 3   - 3 PODs to be created for high availability
+  strategy: 
+    type: RollingUpdate     other 2 also available Recreate | Canary
+  selector:
+    matchLabels:
+      app: javawebapp
+  template:
+    metadata:
+      name: javawebapppod    - POD name
+      labels:
+        app: javawebapp
+      spec:
+        containers:
+        - name: javawebappcontainer
+          image: 150478/irctc
+          ports:
+           - containerPort: 8080
+...
+apiVersion: v1			--- to expose the POD
+kind: Service
+metadata:
+  name: javawebappservice
+spec:
+  type: LoadBalancer
+  selector: 
+    app: javawebapp
+  ports:
+   - port: 80
+     containerPort: 8080
+...
+
+
+=== connect to EC2
+
+$ vi javawebapp-deployment.yml
+-- write the contents
+
+no Load balancers in EC2 Dashboard - check in AWS management console - Instances
+
+
+#check pods running
+$ kubectl get pods
+-- no pods available
+
+#check pods running in which worker node
+$kubectl get pods -o wide
+
+#ceck services created
+$kubectl get svc
+-- no services available
+
+#check deployments created
+$ kubectl get deployment
+
+#execute K8s manifest yml
+$kubectl apply -f <yml>
+
+deployment: 
+service:
+
+EC2 Dashboard - 3 worker nodes running
+
+# to access the application
+Load Balancers - DNS name in browser /java-web-app
+
+#to delete the resources we have created
+$kubectl delete all --all
+
+
+
+===========================================================
+
+Kubernetes automates operational tasks of container management and includes built-in commands for deploying applications, rolling out changes to your applications, scaling your applications up and down to fit changing needs, monitoring your applications, and more—making it easier to manage applications.
+
+While Docker is a container runtime, Kubernetes is a platform for running and managing containers from many container runtimes. Kubernetes supports numerous container runtimes including Docker, containerd, CRI-O, and any implementation of the Kubernetes CRI (Container Runtime Interface).
+
+-> Basics of Kubernetes
+-> Kubernetes Components
+-> Kubernetes Architecture Internals
+-> Installation K8s Windows
+-> Deploy Microservice in K8s with terminal
+-> Deploy Microservice in K8s with YML
+-> Deploy & Run Spring Boot CRUD app in K8s
+-> Use of ConfigMap & Secrets
+
+What is Kubernetes?
+
+Kubernetes (K8s) is an open-source container orchestration system/engine/container management tool for automating software deployment, scaling, and management of containerized applications.
+
+Originally designed by Google, the project is now maintained by the Cloud Native Computing Foundation (CNCF). 
+
+Developed with Go Languages
+
+K8s is a Container Management Tool
+Container  - Docker is a container where we can run any application applications like Java, NodeJS, Angular etc. Kubernetes will manage those applications which is running on the Docker container
+
+Management - Kubernetes will take care of Deploying , Scheduling, Scaling, Load Balancing of your application which is running on our Docker container
+
+Tool
+
+Container Orchestration Engine - manages the container activities
+
+Like Kubernetes - we can use Docker Compose, MARATHON etc
+
+
+Kubernetes Components
+---------------------
+
+K8s Components
+- very important
+
+POD - collection of containers is known as a pod and each pod is accociated with an IP address, can have multiple pods. one pod can communicate to another pod
+POD-1 --> container-1 + container-2
+POD-2 --> container-1 + container-2 + container-3
+
+NODE ---> collection of PODs
+
+CLUSTER ---> collection of nodes
+
+REPLICATION CONTROLLER / REPLICA SET  - backup of your POD, so that if POS is down - we wont be having any application downtime
+
+SERVICE - 
+DEPLOYMENT
+SECRETS
+CONFIG MAP
+ETCD - the primary datastore of Kubernetes /etcd --- d: directory  linux directory
+-------------------------------------------------
+Kubernetes Architecture
+Manager in a company manages multiple projects which has got developers
+
+
+
+
+
+Setup Kubernetes in Windows & Run Spring boot application on k8s cluster
+
+1. What is Minikube
+2. Minikube installation steps in Windows
+3. Kubernetes basic commands
+4. How to deploy first Spring Boot Application to Kubernetes
+
+As you know, in K8s - we will have a cluster and inside cluster we can have a single NODE or multiple NODEs and inside each NODE we can have a single POD or multiple PODs and inside each PODE  we can have a single Container or multiple containers; and the container is the platform where you can run your applications - application can be spring boot or angular or any technology specific applicationyou can run in container present inside PODs
+
+If you understand this basic architecture - to run a basic application in K8s - we need the cluster infrastructure - we need nodes, pods etc - HOW CAN WE GET THIS INFRASTRUCTURE? - that is where this MINICUBE Utility or tool came into picture
+
+Minikube runs a single-node Kubernetes cluster on your machine so that you can try out Kubernetes for your daily development work.
+
+
+Step 1) Install Kubectl - (Kubekattil) - kubectl is a command line tool, using kubectl we can connect to k8s cluster from our computer .
+
+https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/
+
+Download the latest 1.27 patch release: kubectl 1.27.2.   - Kubectl.exe
+
+2) Install Minikube
+https://github.com/kubernetes/minikube/releases/latest   minikube-windows-amd64.exe - rename to minikube.exe
+
+3) Once you download both exe file , just move these two file to separate directory/folder like c:\minikube
+
+4) Next set this folder path as environment variable "PATH" in your windows
+set PATH = C:\minikube
+
+5) open command prompt and run command
+cmd> minikube version
+
+it should display current installed minikube version. We are good with minikube setup in windows . now you can play with k8s
+
+6) Start Docker Desktop
+
+7) To create a Kubernetes cluster first we need start minikube server in our system . 
+There are multiple drivers are available, using any of them you can start your minikube
+ minikube start --driver=<driver name>
+
+Driver Types: a) Hyper-v   b) VirtualBox c) Docker
+
+cmd> minikube start --driver=docker
+
+-- minikube started successfully ----- started a single node / plane node cluster
+
+8) After successfully started minikube , you can verify minikube status
+cmd> minikube status
+
+9) As we know minikube will provide you single node cluster to work with k8s locally so to verify cluster info and node status we can run below commands -- to verify whether the cluster is created or not --
+
+cmd> kubectl cluster-info
+
+10) -- to verify the node - should give a single node
+cmd> kubectl get node
+
+name of node - minikube
+status - ready
+
+-- single node cluster is ready --- Now we have Kubernetes cluster ready with us to start our local development work
+
+=================================================================================================
+
+$$$---- Deploy spring boot application to Kubernetes cluster ----$$$$
+
+Step 1: To allow Kubernetes to read your docker repository you need to run below command , so that both will be in sync
+cmd> minikube docker-env
+
+-- copy the last line -- @For /f ....... and place it in cmd
+cmd> @for ....
+
+-- now kubernetes can read our local docker repository -- now if we type
+
+cmd> docker images
+-- can see the list of docker images specific to k8s , starting things are master node components
+
+
+Step 2 : Create a spring boot project then add Dockerfile and next build a docker image Create a Spring Boot 
+Artifact- sb-k8s-app
+com.wipro.k8s
+Deploy your spring boot application to kubernetes cluster 
+
+@RestController
+public class MessageRestController{
+ @GetMapping("/message")
+ public String displayMessage(){
+   return "Congratulation you successfully deployed your application to kubernetes !!";
+ }
+}
+
+<finalName>sb-k8s-app</finalName> in pom.xml
+
+Dockerfile
+
+FROM openjdk:17.0.1-jdk-slim
+COPY target/sb-k8s-app.jar sb-k8s-app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/sb-k8s-app.jar"]
+
+
+-- dockerize this application
+spring-boot-app-directory> docker build -t springboot-k8s-app:1.0 .
+
+view docker image in k8s
+cmd>docker images
+
+Step 3 : Create Deployment Object , as we know Deployments are Kubernetes objects that are used for managing pods. we can describe deployment object details using YML file but this case let's work with command.
+
+cmd> kubectl create deployment spring-boot-k8s --image=springboot-k8s-app:1.0 --port=8080
+
+With above command we are telling to k8s , create a deployment with name spring-boot-k8s and read the docker image springboot-k8s-app:1.0 then next create a pod and run my image inside containers; meaning of above command is - create a deploymet object by taking the docker image and should run inside a pod in port 8080 - deployment object will be created
+
+Verify deployment status:
+cmd> kubectl get deployments
+
+Describe deployment object:
+kubectl describe deployment spring-boot-k8s
+
+
+Now to ensure that Kubernetes successfully pull my docker image and run it inside a pods we can execute below command
+verify pod created:
+
+cmd> kubectl get pods
+
+Validate docker image running inside pod:
+
+cmd> kubectl logs spring-boot-k8s-58dc4b544f-rpxjq
+
+We are good now , our application is running inside k8s pods . now to expose this application to outside world we need to create service object .To create a Service object we need to exposes the deployment with specific service type
+
+Step 4 : Use below command to create service object
+
+cmd> kubectl expose deployment spring-boot-k8s --type=NodePort
+
+-- from the repo we need to pull the image and to run it inside K8s cluster
+
+Once service created you can verify that
+
+cmd> kubectl get service 	OR  cmd> kubectl get svc
+
+As we know all traffic will come to service and then service will redirect your request to corresponding pods based on available . since we have only one pod we can directly get the service url to access it .
+
+Step 5 : Start tunnel or get the proxy url of service to access it .
+cmd> minikube service spring-boot-k8s --url
+
+Step 6 : Access the url
+http://127.0.0.1:52562/message
+
+CTL+C
+
+
+Step 7 : You can visualize health of your pods, service and deployment using Kubernetes dashboard
+
+cmd> minikube dashboard
+
+-- This will enable the dashboard add-on, and open the proxy in the default web browser. You can access the above url to watch your k8s dashboard
+
+
+Clean up local state
+
+Step 8 : Delete Service
+cmd> kubectl delete service spring-boot-k8s
+
+Step 9 : Delete Deployment
+cmd> kubectl delete deployment spring-boot-k8s
+
+cmd> kubectl get pods
+cmd> kubectl get service /svc
+cmd> kubectl get deployments
+
+Step 10 : Stop minikube
+cmd> minikube stop
+
+cmd> kubectl get nodes
+
+-- Stops a local Kubernetes cluster. This command stops the underlying VM or container, but keeps user data intact. The cluster can be started again with the “start” command.
+
+Step 11 : Delete minikube
+cmd> minikube delete
+
+-- Deletes a local Kubernetes cluster. This command deletes the VM, and removes all associated files.
+
+
+
+
