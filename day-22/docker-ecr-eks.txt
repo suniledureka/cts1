@@ -47,8 +47,8 @@ URI: 768121720918.dkr.ecr.us-east-1.amazonaws.com/sbpmsecr
 [[Download & Install AWS CLI]]
 
 cmd>aws configure
-Access Key: AKIA3FV47KBLNDHTREFP
-Secret Access Key: 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
+Access xx: xxxxxxxx
+Secret xxxxx
 Default Region Name: Global
 Default Output format: json
 
