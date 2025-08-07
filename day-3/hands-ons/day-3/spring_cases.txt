@@ -1,0 +1,35 @@
+Question - 1
+
+ interface DataProvider
+         int[] getData();
+
+class DataProvider1 implements DataProvider
+  return new int[]{45,25,63,12,8,62};
+
+class DataProvider2 implements DataProvider
+  return new int[]{-45,-25,-63,-12,-8,-62};
+
+class DataProvider3 implements DataProvider
+  return new int[]{5,8,4,6,9,2,1};
+
+
+class BusinessLogic
+ int findMax()
+   -- based on DataProvider1/DataProvider2/DataProvider3 data
+
+- use constructor injection
+- make DataProvider2 as the primary service provider
+- prefer annotations
+- get BusinessLogic bean and get the max value of data (int[])
+- display all the beans configured by spring container
+
+
+Question - 2
+
+Implement the Gaming Application (artifactid : loose-coupling-xml) to spring XML configuration based  application
+
+
+Question - 3
+
+Implement the Gaming Application (artifactid : loose-coupling-annotation) to spring annotation based  application
+
