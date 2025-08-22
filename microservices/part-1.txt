@@ -1,0 +1,879 @@
+ECommerce Application  -> Different Modules like 1. Products, 2. Users  3. Orders  4. Payments   5. Shipment	6. Admin
+
+the entire thing is in one project - one code base
+
+Orders Controller     Orders Model    Orders View
+Products Controller   Products Model  Products View
+
+A Single Server ===> Presentation Layer (UI)  ---- Business Logic Layer  ------ Data Access Layer === Cards , Loans, Accounts  -- Single Supporting DB
+
+Monolithic Application - where all functionalities are put in one single code base. When we take this build of the code base, we get a .jar or .war or .ear file
+
+Advantages: Pros
+1. as all the functionalities are put in one code base, testing and debugging becomes easy
+2. Simpler development and deployment for smaller teams and applications
+2. this entire project is maintained by one team - easy to maintain
+3. Fewer cross-cutting concerns - all the non-functional requirements like security, auditing, logging etc
+4. Better performance due to no network latency - all the code is deployed inside a single server, if accounts business logic wants to communicate with cards or loans- it is just going to be a method call inside the same server - no network call 
+
+Disadvantages
+1. Difficult to adopt new technologies - whenever I want to enhance my web application with a new framework or with new programming  languages or new technology - either we have to update my entire codebase or I need to continue with the old technology. Accounts team may want to move to a new framework or the latest version of the framework - but there will be a push back coming from the Cards and Loans team member 
+
+2. Limited Agility - very limited agility inside monolithic applications - it is going to work like - you decided to move to a new framework or technology or a new language today - you can't do that immediately in a week or a months time . It is going to take lot of time to upgrade your monolithic applications
+
+3. Single code base and difficult to maintain over the time as your application is growing with new enhancements day-by-day
+
+4. Application is not going to be a fault tolerance - which means you are going to be having frequent issues with the scalability , availability of your monolithic applications 
+
+5.  Tiny update and feature development always need a full deployment - ex: cards
+
+6. tight coupling of all the modules
+say after 1 or 2 months after application is live in production, some new functionalities are coming from business as part of enhancements - mainly for orders related like discounts, special offers etc
+
+code base contains - Orders + Products + Users
+
+since all residing in one code base, though there is no changes to the other modules and because of one module code changes (here Orders) - we are building the entire code once, generated update jar or war file , take downtime of the complete application and deploy the new jar or war file to the server
+
+In monolithic applications there is no chance that some functionalities are up and some are down. If server down means all functionalities are down
+
+We have various forms of Monolithic with the names like - Single-Process Monolith, Modular Monolith, Distributed Monolith
+ 
+To overcome the limitations of Monolithic application - SOA 
+
+SOA Architecture ==
+It is an architectural style that focuses on organizing s/w systems as a collection of loosely coupled, interoperable services. It provides a way to design and develop large scale applications by decomposing them into smaller, modular services that can be independently developed, deployed and managed
+
+Server-1 ====> Presentation Layer (UI)   Middleware ===> Enterprise Service Bus   Server2 ===> Accounts Service, Cards Service, Loans Service ----- Single Supporting DB 
+
+Pros
+1. Reusability of Services
+2. Better Maintainability
+3. Higher reliability
+4. Parallel Development	
+-------> we have separated the entire logic to separate components - like all your accounts related logic is going to stay in A/C Service, similarly for Cards and Loans
+Coming to the UI Code is going to separated to a separate code base and it is going to be deployed into a separate server as well
+
+Cons:
+1. Complex Management due to communication protocols like SOAP
+2. High investment costs due to Vendor in Middleware - to setup ESB we need to invest a lot because these are not open source - commercial products - Oracle has got ESB product - Oracle Enterprise Service Bus is a component of Oracle SOA Suite
+
+3. Extra Overload - between UI and backend services
+
+Microservices
+=============
+Microservices services are independently releasable services that are modelled around a business domain. A service encapsulates functionality and makes it accessible to other services via networks - One microservice might represent Accounts, another Cards, and yet another loans, but together they might constitute an entire bank system
+
+Pros:
+1. Easy to develop
+2. Increased Agility
+3. Ability to scale horizontally
+4. Parallel Development
+5. Modelled around a Business Domain
+
+Cons:
+1. Complexity
+2. Infrastructure Overload - many servers to monitor - each service in each server
+3. Security Concerns
+
+
+================= Banking Domain --> Accounts , Cards, Loans ===========================
+
+accounts  - microservice
+
+Step -1
+
+Create a New Spring Starter Project   OR   start.spring.io
+
+Project Name: accounts
+Package Name: com.wipro.accounts
+
+Dependencies: Spring Web, Spring Boot DevTools, H2, Spring Data JPA, Validation, Lombok, Actuator (to monitor our microservice)
+
+
+src/main/resources/application.yml
+
+server:
+  port: 8080
+spring:
+  datasource:
+    url: jdbc:h2:mem:accountsdb
+    driverClassName: org.h2.Driver
+    username: admin
+    password: 1234
+  h2:
+    console:
+      enabled: true
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+Step # 2
+
+Data Model
+
+customer table ---> customer_id, name, email, mobile_number, created_at, created_by, updated_at, updated_by
+accounts table ---> account_number, customer_id, account_type, branch_address, created_at, created_by, updated_at, updated_by
+
+
+src/main/resources/schema.sql  ---- optional - not mandatory as we have provided ddl-auto in application configuration
+
+CREATE TABLE IF NOT EXISTS customer (
+  customer_id int AUTO_INCREMENT PRIMARY KEY,
+  name varchar(100) NOT NULL,
+  email varchar(100) NOT NULL,
+  mobile_number varchar(20) NOT NULL,
+  created_at date NOT NULL,
+  created_by varchar(20) NOT NULL,
+  updated_at date DEFAULT NULL,
+  updated_by varchar(20) DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS accounts (
+  account_number int PRIMARY KEY,
+  customer_id int NOT NULL,  
+  account_type varchar(100) NOT NULL,
+  branch_address varchar(200) NOT NULL,
+  created_at date NOT NULL,
+  created_by varchar(20) NOT NULL,
+  updated_at date DEFAULT NULL,
+  updated_by varchar(20) DEFAULT NULL
+);
+
+Step #3 --- writing spring data jpa entities & repositories to interact with DB table -----
+
+--- BaseEntity.java -----------
+createdAt, createdBy, updatedAt, updatedBy
+
+package com.wipro.accounts.entity;
+
+@MappedSuperclass 
+@EntityListeners(AuditingEntityListener.class)
+@Data
+public class BaseEntity {
+    @CreatedDate
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
+
+    @CreatedBy
+    @Column(updatable = false)
+    private String createdBy;
+
+    @LastModifiedDate
+    @Column(insertable = false)
+    private LocalDateTime updatedAt;
+
+    @LastModifiedBy
+    @Column(insertable = false)
+    private String updatedBy;
+}
+
+
+----- Customer.java ------
+customerId, name, email, mobileNumber
+
+@Entity
+@Getter
+@Setter
+@ToString
+@AllArgsConstructor 
+@NoArgsConstructor
+public class Customer extends  BaseEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name="customer_id")
+    private Long customerId;
+
+    private String name;
+
+    private String email;
+
+    @Column(name="mobile_number")
+    private String mobileNumber;
+}
+
+
+------------ Accounts.java ------------
+@Entity
+@Getter
+@Setter
+@ToString   -- no hashCode & equals
+@AllArgsConstructor 
+@NoArgsConstructor
+public class Accounts extends  BaseEntity {
+	
+    @Id
+    @Column(name="account_number")
+    private Long accountNumber;
+    
+    @Column(name="customer_id")
+    private Long customerId;
+
+    @Column(name="account_type")
+    private String accountType;
+
+    @Column(name="branch_address")
+    private String branchAddress;
+}
+
+
+Step #4 ---- create repository interfaces -----
+
+package com.wipro.accounts.repository;
+@Repository
+public interface AccountsRepository extends JpaRepository<Accounts, Long> {
+
+    Optional<Accounts> findByCustomerId(Long customerId);
+
+    @Transactional
+    @Modifying
+    void deleteByCustomerId(Long customerId);
+}
+
+
+@Repository
+public interface CustomerRepository extends JpaRepository<Customer, Long> {
+    Optional<Customer> findByMobileNumber(String mobileNumber);
+}
+
+
+
+---- DTO (Data Transfer Object) Pattern -----
+
+--> think of a situation where a customer wants to send customer information and accounts information in a single request or think of a situation where we need to send back Customer & Accounts details in a response entity (we can send only a single object in a response)
+--> never use entity classes for data transfer - to overcome this we use DTO pattern
+--> DTO classes can be used for data filtering
+
+
+Step #5 ------- Creating DTO inside accounts microservice -----------
+
+---------- CustomerDto.java -------
+
+@Data
+public class CustomerDto {
+    private String name;
+    private String email;
+    private String mobileNumber;
+}
+
+-------- AccountsDto.java ----------
+
+package com.wipro.accounts.dto;
+@Data
+public class AccountsDto {
+    private Long accountNumber;
+    private String accountType;
+    private String branchAddress;
+}
+
+
+
+----- ResponseDto.java ----------
+@Data 
+@AllArgsConstructor
+public class ResponseDto {
+    private String statusCode;
+    private String statusMsg;    
+}
+
+---------- ErrorResponseDto.java -------------
+@Data 
+@AllArgsConstructor
+public class ErrorResponseDto {
+    private  String apiPath;
+    private HttpStatus errorCode;
+    private  String errorMessage;
+    private LocalDateTime errorTime;
+}
+
+
+Step #6 --- create constants class
+
+------ AccountsConstants.java -----
+package com.wipro.accounts.constants;
+public class AccountsConstants {
+
+    private AccountsConstants() {
+        // restrict instantiation
+    }
+
+    public static final String  SAVINGS = "Savings";
+    public static final String  ADDRESS = "Begumpet, Hyderabad, Telangana";
+    public static final String  STATUS_201 = "201";
+    public static final String  MESSAGE_201 = "Account created successfully";
+    public static final String  STATUS_200 = "200";
+    public static final String  MESSAGE_200 = "Request processed successfully";
+    public static final String  STATUS_417 = "417";
+    public static final String  MESSAGE_417_UPDATE= "Update operation failed. Please try again or contact Dev team";
+    public static final String  MESSAGE_417_DELETE= "Delete operation failed. Please try again or contact Dev team";
+    // public static final String  STATUS_500 = "500";
+    // public static final String  MESSAGE_500 = "An error occurred. Please try again or contact Dev team";
+
+}
+
+
+Step # 7 ----- create API inside accounts microservice -------
+
+----------- AccountsController.java --------
+package com.wipro.accounts.controllers;
+
+@RestController
+@RequestMapping(path = "/api", produces = {MediaType.APPLICATION_JSON_VALUE})
+public class AccountsController {
+	
+	@PostMapping("/create")
+	public ResponseEntity<ResponseDto> createAccount(@RequestBody CustomerDto customerDto){
+
+		return ResponseEntity
+			.status(HttpStatus.CREATED)
+			.body(new ResponseDto(AccountsConstants.STATUS_201, AccountsConstants.MESSAGE_201));
+	}
+}
+
+
+Step #8 ---- create Mapper classes -------
+---- AccountsMapper.java -------
+package com.wipro.accounts.mapper;
+
+public class AccountsMapper {
+
+    public static AccountsDto mapToAccountsDto(Accounts accounts, AccountsDto accountsDto) {
+        accountsDto.setAccountNumber(accounts.getAccountNumber());
+        accountsDto.setAccountType(accounts.getAccountType());
+        accountsDto.setBranchAddress(accounts.getBranchAddress());
+        return accountsDto;
+    }
+
+    public static Accounts mapToAccounts(AccountsDto accountsDto, Accounts accounts) {
+        accounts.setAccountNumber(accountsDto.getAccountNumber());
+        accounts.setAccountType(accountsDto.getAccountType());
+        accounts.setBranchAddress(accountsDto.getBranchAddress());
+        return accounts;
+    }
+
+}
+
+------ CustomerMapper.java -------
+package com.wipro.accounts.mapper;
+
+public class CustomerMapper {
+
+    public static CustomerDto mapToCustomerDto(Customer customer, CustomerDto customerDto) {
+        customerDto.setName(customer.getName());
+        customerDto.setEmail(customer.getEmail());
+        customerDto.setMobileNumber(customer.getMobileNumber());
+        return customerDto;
+    }
+
+    public static Customer mapToCustomer(CustomerDto customerDto, Customer customer) {
+        customer.setName(customerDto.getName());
+        customer.setEmail(customerDto.getEmail());
+        customer.setMobileNumber(customerDto.getMobileNumber());
+        return customer;
+    }
+
+}
+ -----> can use ModelMapper / BeanUtil dependencies  <-----
+
+
+Step #9 ---- create service layer ----------
+
+package com.wipro.accounts.service;
+public interface IAccountsService {
+    /**
+     *@param customerDto - CustomerDto Object	
+    */
+    void createAccount(CustomerDto customerDto);
+}
+
+-------- AccountsServiceImpl.java ------------
+
+package com.wipro.accounts.service;
+@Service
+@AllArgsConstructor
+public class AccountsServiceImpl implements IAccountsService {
+	private AccountsRepository accountsRepo;
+	private CustomerRepository customerRepo;
+
+	@Override
+	public void createAccount(CustomerDto customerDto) {
+		Customer customer = CustomerMapper.mapToCustomer(customerDto, new Customer());
+		Customer savedCustomer = customerRepo.save(customer);
+		
+		accountsRepo.save(createNewAccount(savedCustomer));
+	}
+
+	/**
+	 * @param customer - Customer Object
+	 * @return the new account details
+	 */
+	private Accounts createNewAccount(Customer customer) {
+		Accounts newAccount = new Accounts();
+		newAccount.setCustomerId(customer.getCustomerId());
+		long randomAccNumber = 1000000000L + new Random().nextInt(900000000);
+
+		newAccount.setAccountNumber(randomAccNumber);
+		newAccount.setAccountType(AccountsConstants.SAVINGS);
+		newAccount.setBranchAddress(AccountsConstants.ADDRESS);
+		return newAccount;
+	}
+}
+
+---> we dont want to create a new account for a customer with same mobileNumber
+
+Step #10  ---- create userdefined exceptions -------
+------- CustomerAlreadyExistsException.java --------
+
+package com.wipro.accounts.exception;
+
+@ResponseStatus(value = HttpStatus.BAD_REQUEST)
+public class CustomerAlreadyExistsException extends RuntimeException {
+
+    public CustomerAlreadyExistsException(String message) {
+        super(message);
+    }
+}
+
+
+===> in service class -- we are checking whether a customer exists with the same mobile no
+
+Optional<Customer> optionalCustomer = customerRepo.findByMobileNumber(customerDto.getMobileNumber());
+if(optionalCustomer.isPresent()) {
+       throw new CustomerAlreadyExistsException("Customer already registered with given mobileNumber " +customerDto.getMobileNumber());
+}
+
+==> add the method in CustomerRepository interface
+
+
+Step #11  ---- create Global Exception Handler ----------
+
+------ GlobalExceptionHandler.java -------
+
+package com.wipro.accounts.exception;
+
+@ControllerAdvice
+public class GlobalExceptionHandler{
+
+@ExceptionHandler(CustomerAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponseDto> handleCustomerAlreadyExistsException(CustomerAlreadyExistsException exception, WebRequest webRequest){
+        ErrorResponseDto errorResponseDTO = new ErrorResponseDto(
+                webRequest.getDescription(false), 
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
+                LocalDateTime.now()
+        );
+        return new ResponseEntity<>(errorResponseDTO, HttpStatus.BAD_REQUEST);
+    }
+}
+
+webRequest.getDescription(false) -- //only api path , true - all details with IP
+
+--- in AccountsController 
+
+@AllArgsConstructor
+
+private IAccountsService service;
+
+@RestController
+@AllArgsConstructor
+@RequestMapping(path = "/api", produces = {MediaType.APPLICATION_JSON_VALUE})
+public class AccountsController {
+	private IAccountsService service;
+	
+	@PostMapping("/create")
+	public ResponseEntity<ResponseDto> createAccount(@RequestBody CustomerDto customerDto){
+		service.createAccount(customerDto);
+		return ResponseEntity
+					.status(HttpStatus.CREATED)
+					.body(new ResponseDto(AccountsConstants.STATUS_201, AccountsConstants.MESSAGE_201));
+	}
+}
+
+
+Step #12 --- run the application and in postman
+
+POST http://localhost:8080/api/create
+
+{
+    "name":"Sunil Joseph",
+    "email":"sunil@gmail.com",
+    "mobileNumber":"9848586878"
+}
+
+error comes - NULL not allowed for column "CREATED_AT"; SQL statement
+
+in service class --
+customer.setCreatedAt(LocalDateTime.now());
+customer.setCreatedBy("Anonymous");
+Customer savedCustomer = customerRepo.save(customer);
+
+-- same for Account
+newAccount.setCreatedAt(LocalDateTime.now());
+newAccount.setCreatedBy("Anonymous");
+
+-- run again
+-- run again with the same mobileNumber
+
+-- check in DB
+
+
+Step #13 ---- READ API inside accounts microservice -----
+
+in IAccountService interface
+    /**
+     *
+     * @param mobileNumber - Input Mobile Number
+     * @return Accounts Details based on a given mobileNumber
+     */
+    CustomerDto fetchAccount(String mobileNumber);
+
+
+in Service implementation
+    /**
+     * @param mobileNumber - Input Mobile Number
+     * @return Accounts Details based on a given mobileNumber
+     */
+    @Override
+    public CustomerDto fetchAccount(String mobileNumber) {
+        Customer customer = customerRepository.findByMobileNumber(mobileNumber).orElseThrow(
+                () -> new ResourceNotFoundException("Customer", "mobileNumber", mobileNumber)
+        );
+        Accounts accounts = accountsRepository.findByCustomerId(customer.getCustomerId()).orElseThrow(
+                () -> new ResourceNotFoundException("Account", "customerId", customer.getCustomerId().toString())
+        );
+        CustomerDto customerDto = CustomerMapper.mapToCustomerDto(customer, new CustomerDto());
+        customerDto.setAccountsDto(AccountsMapper.mapToAccountsDto(accounts, new AccountsDto()));
+        return customerDto;
+    }
+
+
+----- ResourceNotFoundException.java -------
+@ResponseStatus(value = HttpStatus.NOT_FOUND)
+public class ResourceNotFoundException extends RuntimeException {
+
+    public ResourceNotFoundException(String resourceName, String fieldName, String fieldValue) {
+        super(String.format("%s not found with the given input data %s : '%s'", resourceName, fieldName, fieldValue));
+    }
+}
+
+
+in GlobalExceptionHandler
+
+   @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleResourceNotFoundException(ResourceNotFoundException exception, WebRequest webRequest) {
+        ErrorResponseDto errorResponseDTO = new ErrorResponseDto(
+                webRequest.getDescription(false),
+                HttpStatus.NOT_FOUND,
+                exception.getMessage(),
+                LocalDateTime.now()
+        );
+        return new ResponseEntity<>(errorResponseDTO, HttpStatus.NOT_FOUND);
+    }
+
+
+in CustomerDto -- add a new filed private AccountsDto accountsDto;
+
+in controller
+
+   @GetMapping("/fetch")
+    public ResponseEntity<CustomerDto> fetchAccountDetails(@RequestParam String mobileNumber) {
+        CustomerDto customerDto = iAccountsService.fetchAccount(mobileNumber);
+        return ResponseEntity.status(HttpStatus.OK).body(customerDto);
+    }
+
+http://localhost:8080/api/fetch?mobileNumber=xxxxxxx
+
+
+Step #14 ---- UPDATE API inside accounts microservice ----- dont allow to update the a/c number
+
+Step #15 ---- DELETE API inside accounts microservice -----
+
+
+Step #16 ---- Handle all types of runtime exceptions using global logic inside accounts -----
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponseDto> handleGlobalException(Exception exception, WebRequest webRequest) {
+        ErrorResponseDto errorResponseDTO = new ErrorResponseDto(
+                webRequest.getDescription(false),
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                exception.getMessage(),
+                LocalDateTime.now()
+        );
+        return new ResponseEntity<>(errorResponseDTO, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+-- remove @AllArgsConstructor in AccountsController
+
+
+Step #17 ---- Perform input data validations inside accounts microservice -----
+
+public class CustomerDto {
+    @NotEmpty(message = "Name can not be a null or empty")
+    @Size(min = 5, max = 30, message = "The length of the customer name should be between 5 and 30")
+    private String name;
+
+    @NotEmpty(message = "Email address can not be a null or empty")
+    @Email(message = "Email address should be a valid value")
+    private String email;
+
+    @Pattern(regexp = "(^$|[0-9]{10})", message = "Mobile number must be 10 digits")
+    private String mobileNumber;
+}
+
+
+public class AccountsDto {
+    @NotEmpty(message = "AccountNumber can not be a null or empty")
+    @Pattern(regexp="(^$|[0-9]{10})",message = "AccountNumber must be 10 digits")
+    private Long accountNumber;
+
+    @NotEmpty(message = "AccountType can not be a null or empty")
+    private String accountType;
+
+    @NotEmpty(message = "BranchAddress can not be a null or empty")
+    private String branchAddress;
+}
+
+in controller - @Validated -- class level (will tell to spring boot framework to perform validations on all the rest apis that we have defined inside AccountsController)
+
+@Valid @RequestBody CustomerDto customerDto
+
+
+for query parameter validations
+fetchAccountDetails(@RequestParam @Pattern(regexp="(^$|[0-9]{10})",message = "Mobile number must be 10 digits")
+  String mobileNumber) {
+
+
+
+@ControllerAdvice
+public class GlobalExceptionHandler  extends ResponseEntityExceptionHandler {
+
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+         MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        Map<String, String> validationErrors = new HashMap<>();
+        List<ObjectError> validationErrorList = ex.getBindingResult().getAllErrors();
+
+        validationErrorList.forEach((error) -> {
+            	String fieldName = ((FieldError) error).getField();
+            	String validationMsg = error.getDefaultMessage();
+            	validationErrors.put(fieldName, validationMsg);
+        });
+
+        return new ResponseEntity<>(validationErrors, HttpStatus.BAD_REQUEST);
+    }
+
+
+
+
+Step #18 ---- Update audit columns using Spring data -----
+
+@MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
+@Getter 
+@Setter 
+@ToString
+public class BaseEntity {
+
+    @CreatedDate
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
+
+    @CreatedBy
+    @Column(updatable = false)
+    private String createdBy;
+
+    @LastModifiedDate
+    @Column(insertable = false)
+    private LocalDateTime updatedAt;
+
+    @LastModifiedBy
+    @Column(insertable = false)
+    private String updatedBy;
+}
+
+
+
+package com.wipro.accounts.audit;
+@Component("auditAwareImpl")
+public class AuditAwareImpl implements AuditorAware<String> {
+
+    /**
+     * Returns the current auditor of the application.
+     *
+     * @return the current auditor.
+     */
+    @Override
+    public Optional<String> getCurrentAuditor() {
+        return Optional.of("ACCOUNTS_MS");
+    }	
+}
+
+
+-- to activate the auditing feature - we need to add an annotation to bootstrap class
+
+@EnableJpaAuditing(auditorAwareRef = "auditAwareImpl")
+
+
+-- remove the hard coded createdAt and createdBy set values from Service Impl
+
+
+
+
+
+Step #18 ---- documentation of REST APIs using springdoc open api -----
+
+@OpenAPIDefinition(
+		info = @Info(
+				title = "Accounts microservice REST API Documentation",
+				description = "WiproBank Accounts microservice REST API Documentation",
+				version = "v1",
+				contact = @Contact(
+						name = "Sunil Joseph",
+						email = "sunil.j@wipro.com",
+						url = "https://www.wipro.com"
+				),
+				license = @License(
+						name = "Zetta 2.0",
+						url = "https://www.wipro.com"
+				)
+		),
+		externalDocs = @ExternalDocumentation(
+				description =  "wiproBank Accounts microservice REST API Documentation",
+				url = "https://www.wipro.com/swagger-ui.html"
+		)
+)
+
+--- documentation using @Tag, @Operation, @ApiResponse
+
+controller class
+@Tag(
+        name = "CRUD REST APIs for Accounts in WiproBank",
+        description = "CRUD REST APIs in WiproBank to CREATE, UPDATE, FETCH AND DELETE account details"
+)
+
+on API
+
+@Operation(
+            summary = "Create Account REST API",
+            description = "REST API to create new Customer &  Account inside WiproBank"
+    )
+
+@ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "HTTP Status CREATED"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "HTTP Status Internal Server Error",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponseDto.class)
+                    )
+            )
+    }
+    )
+
+
+-- documentaion of REST APIs using @Schema & example data
+
+CustomerDto - class level
+@Schema(
+        name = "Customer",
+        description = "Schema to hold Customer and Account information"
+)
+
+
+field level
+
+@Schema(
+            description = "Name of the customer", example = "Sunil Joseph"
+    )
+    @NotEmpty(message = "Name can not be a null or empty")
+    @Size(min = 5, max = 30, message = "The length of the customer name should be between 5 and 30")
+    private String name;
+
+========================================================================================================
+
+Build Loans Microservice
+
+CREATE TABLE IF NOT EXISTS loans (
+  loan_id int NOT NULL AUTO_INCREMENT,
+  mobile_number varchar(15) NOT NULL,
+  loan_number varchar(100) NOT NULL,
+  loan_type varchar(100) NOT NULL,
+  total_loan int NOT NULL,
+  amount_paid int NOT NULL,
+  outstanding_amount int NOT NULL,
+  created_at date NOT NULL,
+  created_by varchar(20) NOT NULL,
+  updated_at date DEFAULT NULL,
+  updated_by varchar(20) DEFAULT NULL,
+  PRIMARY KEY (loan_id)
+);
+
+http://localhost:8090/api/create?mobileNumber=xxxxxxxxxxxxxxxxx
+
+------  LoansDto.java -----
+mobileNumber
+loanNumber
+loanType
+totalLoan
+amountPaid
+outstandingAmount    
+
+
+
+
+
+Build Cards Microservice
+
+CREATE TABLE IF NOT EXISTS cards (
+  card_id int NOT NULL AUTO_INCREMENT,
+  mobile_number varchar(15) NOT NULL,
+  card_number varchar(100) NOT NULL,
+  card_type varchar(100) NOT NULL,
+  total_limit int NOT NULL,
+  amount_used int NOT NULL,
+  available_amount int NOT NULL,
+  created_at date NOT NULL,
+  created_by varchar(20) NOT NULL,
+  updated_at date DEFAULT NULL,
+  updated_by varchar(20) DEFAULT NULL,
+  PRIMARY KEY (card_id)
+);
+
+http://localhost:9000/api/create?mobileNumber=xxxxxxxx
+----- CardsDto.java --------
+mobileNumber  
+cardNumber
+cardType
+totalLimit
+amountUsed
+availableAmount    ---- CardsDto
+
+
+==========================================================================================================
+Challenge #1  - developing microservice using REST API
+
+Challenge #2  - How do we right size our microservices & identify boundaries
+
+-- teashirt size S M L XL XXL  -- sizing is very important
+user story stroy point
+
+How to right size and identify service boundaries of microservices?
+
+commands - is a process which will initiate the event
+	ex: for the completed payment - customer has to click on a button to initiate the payment (command) and the reaction can be "the amount will be deducted from his a/c post the completion of the payment"
+
+https://www.lucidchart.com/blog/ddd-event-storming
+
+
+
+Sizing & Identifying boundaries with a ecommerce migration use case
+
+Docker container inside Kuberneties Cluster
+
+Event Bus (Event Streaming)- Kafka , Rabbit MQ
+
+-----------------------------------------------------
