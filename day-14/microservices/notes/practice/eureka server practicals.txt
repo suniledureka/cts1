@@ -1,0 +1,268 @@
+a) create a new spring starter project - eurekaserver
+dependencies : Eureka Server, Spring Boot Actuator
+
+b) make this spring boot as a service discovery and registration
+on the bootstrap class   @EnableEurekaServer
+
+c) in application.properties / application.yml
+
+spring.application.name=eurekaserver
+
+server.port=8761
+eureka.instance.hostname=localhost
+
+eureka.client.register-with-eureka=false
+eureka.client.fetch-registry=false
+
+
+d) run as spring boot application
+
+e) http://localhost:8761    -----> shows eureka dashboard
+
+---------- register accounts microservices with eureka server / server registry -----------------
+
+a) add a new dependencies :  Eureka Discovery Client (spring-cloud-starter-netflix-eureka-client), Spring Boot Actuator
+
+b) in application.yml
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/     
+  instance:
+    prefer-ip-address: true
+
+
+notes:
+preferIpAddress --> whenever accounts microservice is trying to register with eureka server -by default it will try to register with hostname; hostnames will make sense whenever you are trying to use DNS mappings inside your microservices network 
+  -- accounts microservice will register with eureka server by using the IP address
+
+serviceUrl.defaultZone --> to configure multiple Eureka Servers from Client in Spring Cloud , separate with ,
+
+
+=> run accounts ms and check eureka dashboard  --- name of ms might be UNKNOWN
+spring:
+  application:
+    name: accounts		
+
+check in eureka dashboard
+
+--- try    http://localhost:8761/eureka/apps   (in browser)
+
+
+==> to enable all actuator endpoints and also to provide the information about accounts ms -in application.yml
+management.endpoints.web.exposure.include
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  info:
+    env:
+      enabled: true
+info:
+  app:
+    name: "accounts"
+    description: "Accounts related microservices in Wipro Bank Network"
+    version: "1.0.1"
+
+
+from eureka dashboard - click on the link of microservice instance
+
+http://192.168.0.108:8080/actuator
+http://192.168.0.108:8080/actuator/health
+
+
+===>  same configurations to be done for loans and cards =====
+
+
+=====>  http://localhost:8761/eureka/apps
+http://localhost:8761/eureka/apps/loans
+http://localhost:8761/eureka/apps/cards
+http://localhost:8761/eureka/apps/accounts
+
+in postman
+
+GET     http://localhost:8761/eureka/apps/accounts
+
+
+=================================================================================================
+
+----------- Feign Client code changes to invoke other microservices  ----------------
+
+Declarative REST Client. OpenFeign creates a dynamic implementation of an interface decorated with JAX-RS or Spring MVC annotations.
+
+
+Task: create a new REST API inside the accounts microservice to accumulate account related information, loans related information and cards related information based upon a given mobile number and it should consolidate all the responses from the other microservices like loans & cards along with the a/c related data. 
+
+At present account microservice is not having any information about cards and loans - so it has to connect with the cards & loans microservice to get the data 
+
+to establish the internal connect b/w the microservices - we need to use Open Feign client library
+
+
+--accounts microservice ---
+new dependency: OpenFeign (spring-cloud-starter-openfeign)
+
+on bootstrap class  - @EnableFeignClients  --> enables Feign client related functionalities inside our accounts microservice - so that accounts microservice can connect with other microservices
+
+in-order to connect with Loans & cards microservices in a traditional approach -we can use RestTemplate , WebClient and we pass the URL, request data, port number etc with the RestTemplate or WebClient 
+
+when we use the OpenFeign client - we don't need to write the implementation code - we just have to write the declarative code (something like the approach that we used in Data JPA - not writing any implementation code - only declarative code)
+
+# create client interface  - to help the account microservice to connect with the cards microservice
+
+package com.wipro.accounts.service.client;
+
+@FeignClient("cards")  --> to use the openfeign libraries - name used to register cards microservice with eureka server
+public interface CardsFeignClient {
+
+    @GetMapping(value = "/api/fetch", consumes = "application/json")
+    public ResponseEntity<CardsDto> fetchCardDetails(@RequestParam String mobileNumber); //should match with the cards microservice
+}
+
+copy the CardsDto and LoansDto from the respective microservices  and place it in accounts microservice dto package
+
+-- behind the scenes - our CardsFeignClient will connect to the Eureka Server and try to fetch all the instances that are registered with the logical name "cards" - once it gets the instance information - it will cache those details for 30 seconds which is the default period and within 30 seconds it is not going to connect again with eureka server; instead it is going to leverage the details present in the cache. 
+
+Based upon the IP details in the cache - it is going to invoke the api "/api/fetch" along with mobileNumber of Cards microservice 
+-- all the implementation codes will be generated by OpenFeign client
+
+---- create a similar feign client for loans microservice
+
+
+------------------- LoansFeignClient.java ------------------
+
+package com.wipro.accounts.service.client;
+
+@FeignClient("loans")
+public interface LoansFeignClient {
+    @GetMapping(value = "/api/fetch",consumes = "application/json")
+    public ResponseEntity<LoansDto> fetchLoanDetails(@RequestParam String mobileNumber);
+}
+
+
+
+--> create a new DTO class for sending response of account , customer, loans and cards details - CustomerDetailsDto - to hold all details
+
+-------------- CustomerDetailsDto.java -----------------
+
+package com.wipro.accounts.dto;
+
+@Data
+public class CustomerDetailsDto {		---> take the details from CustomerDto
+ private String name;
+ private String email;
+ private String mobileNumber;
+ private AccountsDto accountsDto;
+
+ private CardsDto cardsDto;
+ private LoansDto loansDto;
+}
+
+
+--> create a new Controller -- CustomerController
+
+package com.wipro.accounts.controllers
+
+@RestController
+@RequestMapping(path="/api", produces = {MediaType.APPLICATION_JSON_VALUE})
+@Validated
+public class CustomerController {
+    @GetMapping("/fetchCustomerDetails")
+    public ResponseEntity<CustomerDetailsDto> fetchCustomerDetails(@RequestParam @Pattern(regexp="(^$|[0-9]{10})",message = "Mobile number must be 10 digits") String mobileNumber){
+      return null;
+    }
+}
+
+
+# create an interface in service package
+
+package com.wipro.accounts.service;	
+public interface ICustomersService {
+    CustomerDetailsDto fetchCustomerDetails(String mobileNumber);
+}
+
+
+# implementation class
+
+@Service
+@AllArgsConstructor
+public class CustomersServiceImpl implements ICustomersService {
+
+    private AccountsRepository accountsRepository;
+    private CustomerRepository customerRepository;
+
+    private CardsFeignClient cardsFeignClient;
+    private LoansFeignClient loansFeignClient;
+
+    @Override
+    public CustomerDetailsDto fetchCustomerDetails(String mobileNumber) {   //refer AccountsServiceImpl
+        Customer customer = customerRepository.findByMobileNumber(mobileNumber).orElseThrow(
+                () -> new ResourceNotFoundException("Customer", "mobileNumber", mobileNumber)
+        );
+        Accounts accounts = accountsRepository.findByCustomerId(customer.getCustomerId()).orElseThrow(
+                () -> new ResourceNotFoundException("Account", "customerId", customer.getCustomerId().toString())
+        );
+
+        CustomerDetailsDto customerDetailsDto = CustomerMapper.mapToCustomerDetailsDto(customer, new CustomerDetailsDto());
+        customerDetailsDto.setAccountsDto(AccountsMapper.mapToAccountsDto(accounts, new AccountsDto()));
+
+        ResponseEntity<LoansDto> loansDtoResponseEntity = loansFeignClient.fetchLoanDetails(mobileNumber);
+        customerDetailsDto.setLoansDto(loansDtoResponseEntity.getBody());
+
+        ResponseEntity<CardsDto> cardsDtoResponseEntity = cardsFeignClient.fetchCardDetails(mobileNumber);
+        customerDetailsDto.setCardsDto(cardsDtoResponseEntity.getBody());
+
+        return customerDetailsDto;
+    }
+}
+
+--- inside CustomerMapper class
+    public static CustomerDetailsDto mapToCustomerDetailsDto(Customer customer, CustomerDetailsDto customerDetailsDto) {
+        customerDetailsDto.setName(customer.getName());
+        customerDetailsDto.setEmail(customer.getEmail());
+        customerDetailsDto.setMobileNumber(customer.getMobileNumber());
+        return customerDetailsDto;
+    }
+
+
+
+-- in Controller class
+package com.wipro.accounts.controllers
+
+@RestController
+@RequestMapping(path="/api", produces = {MediaType.APPLICATION_JSON_VALUE})
+@Validated
+public class CustomerController {
+    private final ICustomersService iCustomersService;
+
+    public CustomerController(ICustomersService iCustomersService){
+        this.iCustomersService = iCustomersService;
+    }
+
+    @GetMapping("/fetchCustomerDetails")
+    public ResponseEntity<CustomerDetailsDto> fetchCustomerDetails(@RequestParam
+                                                                   @Pattern(regexp="(^$|[0-9]{10})",message = "Mobile number must be 10 digits") String mobileNumber){
+      CustomerDetailsDto customerDetailsDto = iCustomersService.fetchCustomerDetails(mobileNumber);
+      return ResponseEntity.status(HttpStatus.OK).body(customerDetailsDto);
+    }
+}
+
+
+start eureka server, accounts, cards & loans ms
+
+check in eureka dashboard
+
+POST - http://localhost:8080/api/create
+POST - http://localhost:9000/api/create?mobileNumber=xxxx    use the same mobile number
+POST - http://localhost:8090/api/create?mobileNumber=xxxx    use the same mobile number
+
+GET - http://localhost:8080/api/fetchCustomerDetails?mobileNumber=xxxx    
+
+we have used to logic name of microservice - not IP address to invoke the other ms 
+it will go and check in the service registry agent (eureka) - and will get the complete details of the "cards" / "loans" ms
+
+
+
