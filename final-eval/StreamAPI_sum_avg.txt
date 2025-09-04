@@ -1,0 +1,323 @@
+// creating a stream
+IntStream stream = IntStream.of(2, 3, 4, 5, 6, 7, 8);
+ 
+// OptionalDouble is a container object which may or may not contain a double value.
+OptionalDouble obj = stream.average();
+
+// If a value is present, isPresent() will return true and getAsDouble() will return the value 
+if (obj.isPresent()) {
+   System.out.println(obj.getAsDouble());
+}
+else {
+   System.out.println("-1");
+}
+
+
+
+IntSummaryStatistics stats = Arrays.asList(1,2,3,4)
+    .stream()
+    .mapToInt(Integer::intValue)
+    .summaryStatistics();
+
+stats.getSum();
+stats.getCount();
+stats.getAverage();
+
+
+Arrays.asList(1,2,3,4).stream().collect(Collectors.summarizingInt(Integer::intValue));
+
+list.stream().mapToInt(Integer::intValue)
+System.out.println("sum by using Stream : " + list.stream().mapToInt(Integer::intValue).sum());
+System.out.println("average by using Stream : " + list.stream().mapToInt(Integer::intValue).average());
+
+
+System.out.println("sum, count, avg, min and max using Stream : " + list.stream().mapToInt(Integer::intValue).summaryStatistics());
+
+To sort the values you can use the Stream::sorted method:
+System.out.println("sort by using Stream: " + list.stream().sorted().collect(Collectors.toList()));
+
+
+List<Integer> list = Arrays.asList(5,3,4,1,2);
+System.out.println("sum by using Stream : " + list.stream().mapToInt(Integer::intValue).sum());
+System.out .println("count by using Stream: " + list.stream().mapToInt(Integer::intValue).count());
+System.out.println("average by using Stream : " + list.stream().mapToInt(Integer::intValue).average());
+System.out.println("sort by using Stream: " + list.stream().sorted().collect(Collectors.toList()));
+
+
+===================================================
+
+Filter Employees by Age
+You have a List<Employee> with fields (id, name, age, salary).
+👉 Write a Stream to get all employees older than 30.
+
+Get Names of Products
+Given a List<Product> with (id, name, price),
+👉 Extract only the names into a List<String>.
+
+Find First Even Number
+From a List<Integer>,
+👉 Find the first even number using Streams.
+
+
+Highest Paid Employee
+Given a List<Employee>,
+👉 Find the employee with the maximum salary using Streams.
+
+Salary Increase
+Increase the salary of all employees by 10% and collect them into a new list.
+
+Find Duplicate Numbers
+From a List<Integer>,
+👉 Find the duplicate elements using Streams.
+
+Word Frequency Counter
+Given a String sentence = "java streams make java easy";
+👉 Count how many times each word occurs.
+
+Sort Employees by Name
+From a List<Employee>,
+👉 Sort employees by name alphabetically and collect the result.
+
+Group Employees by Department
+You have a List<Employee> with (id, name, department, salary).
+👉 Group employees by department into a Map<String, List<Employee>>.
+
+Average Salary by Department
+👉 Using Streams, calculate the average salary per department.
+
+Nth Highest Salary
+👉 Find the 2nd highest salary using Streams.
+
+FlatMap Example – Courses
+A List<Student> where each student has a List<String> courses.
+👉 Find all distinct courses across all students.
+
+Parallel Stream Performance
+You have a very large list of numbers.
+👉 Show how you would calculate the sum using parallelStream() and discuss when it’s useful/dangerous.
+
+Partition Employees
+Partition employees into two groups:
+
+Salary > 50,000
+
+Salary ≤ 50,000
+
+Custom Collector
+👉 Write a custom collector that concatenates employee names into a single comma-separated string.
+
+=== Solutions =====
+class Employee {
+    int id;
+    String name;
+    int age;
+    double salary;
+    String department;
+
+    Employee(int id, String name, int age, double salary, String department) {
+        this.id = id;
+        this.name = name;
+        this.age = age;
+        this.salary = salary;
+        this.department = department;
+    }
+
+    @Override
+    public String toString() {
+        return name + " (" + department + ", " + salary + ")";
+    }
+}
+
+class Product {
+    int id;
+    String name;
+    double price;
+
+    Product(int id, String name, double price) {
+        this.id = id;
+        this.name = name;
+        this.price = price;
+    }
+}
+
+
+
+Filter Employees by Age
+
+List<Employee> employees = Arrays.asList(
+    new Employee(1, "Alice", 28, 45000, "IT"),
+    new Employee(2, "Bob", 35, 60000, "HR"),
+    new Employee(3, "Charlie", 40, 75000, "Finance")
+);
+
+List<Employee> result = employees.stream()
+        .filter(e -> e.age > 30)
+        .collect(Collectors.toList());
+
+System.out.println(result);
+
+
+Get Names of Products
+
+List<Product> products = Arrays.asList(
+    new Product(1, "Laptop", 80000),
+    new Product(2, "Phone", 40000),
+    new Product(3, "Tablet", 30000)
+);
+
+List<String> names = products.stream()
+        .map(p -> p.name)
+        .collect(Collectors.toList());
+
+System.out.println(names);
+
+
+Find First Even Number
+List<Integer> numbers = Arrays.asList(3, 7, 9, 12, 15, 18);
+
+Optional<Integer> firstEven = numbers.stream()
+        .filter(n -> n % 2 == 0)
+        .findFirst();
+
+System.out.println(firstEven.orElse(null));
+
+
+
+Highest Paid Employee
+
+Optional<Employee> highest = employees.stream()
+        .max(Comparator.comparingDouble(e -> e.salary));
+
+highest.ifPresent(System.out::println);
+
+
+
+Salary Increase
+
+List<Employee> updated = employees.stream()
+        .map(e -> new Employee(e.id, e.name, e.age, e.salary * 1.10, e.department))
+        .collect(Collectors.toList());
+
+System.out.println(updated);
+
+
+Find Duplicate Numbers
+
+List<Integer> nums = Arrays.asList(1, 2, 3, 4, 2, 5, 3, 6);
+
+Set<Integer> seen = new HashSet<>();
+Set<Integer> duplicates = nums.stream()
+        .filter(n -> !seen.add(n))
+        .collect(Collectors.toSet());
+
+System.out.println(duplicates);
+
+
+
+Word Frequency Counter
+
+String sentence = "java streams make java easy";
+
+Map<String, Long> wordCount = Arrays.stream(sentence.split(" "))
+        .collect(Collectors.groupingBy(w -> w, Collectors.counting()));
+
+System.out.println(wordCount);
+
+
+Sort Employees by Name
+
+List<Employee> sorted = employees.stream()
+        .sorted(Comparator.comparing(e -> e.name))
+        .collect(Collectors.toList());
+
+System.out.println(sorted);
+
+
+
+Group Employees by Department
+
+Map<String, List<Employee>> byDept = employees.stream()
+        .collect(Collectors.groupingBy(e -> e.department));
+
+System.out.println(byDept);
+
+
+Average Salary by Department
+Map<String, Double> avgSalary = employees.stream()
+        .collect(Collectors.groupingBy(e -> e.department,
+                Collectors.averagingDouble(e -> e.salary)));
+
+System.out.println(avgSalary);
+
+
+Nth Highest Salary (2nd Highest Example)
+Optional<Double> secondHighest = employees.stream()
+        .map(e -> e.salary)
+        .sorted(Comparator.reverseOrder())
+        .skip(1)
+        .findFirst();
+
+System.out.println(secondHighest.orElse(null));
+
+
+FlatMap Example – Courses
+
+class Student {
+    String name;
+    List<String> courses;
+    Student(String name, List<String> courses) {
+        this.name = name;
+        this.courses = courses;
+    }
+}
+
+List<Student> students = Arrays.asList(
+    new Student("Tom", Arrays.asList("Math", "Physics")),
+    new Student("Jerry", Arrays.asList("Chemistry", "Math")),
+    new Student("Mickey", Arrays.asList("Biology", "Physics"))
+);
+
+FlatMap Example – Courses
+
+List<String> allCourses = students.stream()
+        .flatMap(s -> s.courses.stream())
+        .distinct()
+        .collect(Collectors.toList());
+
+System.out.println(allCourses);
+
+
+Parallel Stream Performance
+
+List<Integer> bigList = IntStream.rangeClosed(1, 1_000_000)
+        .boxed().collect(Collectors.toList());
+
+int sum = bigList.parallelStream()
+        .mapToInt(Integer::intValue)
+        .sum();
+
+System.out.println("Sum = " + sum);
+
+
+Partition Employees by Salary
+
+Map<Boolean, List<Employee>> partitioned = employees.stream()
+        .collect(Collectors.partitioningBy(e -> e.salary > 50000));
+
+System.out.println(partitioned);
+
+
+
+Custom Collector – Comma Separated Names
+
+String namesString = employees.stream()
+        .map(e -> e.name)
+        .collect(Collectors.joining(", "));
+
+System.out.println(namesString);
+
+
+
+
+
+
